@@ -30,7 +30,7 @@ class Note {
     }
 }
 
-class Target {
+class Lane {
     constructor (scene, x, y, d) {
         this.scene = scene;
         this.sprite = scene.add.sprite(x, y, 'arrows', 7);
@@ -43,9 +43,61 @@ class Target {
     }
 
     update(delta) {
+        // create a new list that will hold notes that are still alive
+        let newlist = [];
+
+        // go through our existing list and ask each note to update
         for (let i = 0; i < this.notes.length; i++) {
+            // update a note
             this.notes[i] .update (delta);
+
+            // if the note is dead, reclaim its memory
+            if (this.notes[i].state == NoteState.DEAD) {
+                this.notes[i].destroy ();
+            }
+            // else add to new list
+            else {
+                newlist .push (this.notes[i]);
+            }
         }
+
+        // switch old list and new list
+        this.notes = newlist;
+    }
+
+    getFirstReadyIndex () {
+        // go through list of notes and find the first one that is ready
+        for (let i = 0; i < this.notes.length; i++) {
+            if (this.notes[i].ready == true) { return i; }
+        }
+        return -1;
+    }
+
+    trigger () {
+        let rindex = this.getFirstReadyIndex ();
+        let scored = 0;
+
+        if (rindex < 0) { return }
+        this.notes[rindex].ready = false;
+
+        let distance = Math.abs(this.notes[rindex].sprite.y - this.sprite.y);
+
+        if (distance > 128) {
+            this.notes[rindex].sprite.frame = 0;
+        }
+        else if (distance < 8) {
+            this.notes[rindex].state = NoteState.DEAD;
+            scored = 100;
+        }
+        else if (distance < 16) {
+            this.notes[rindex].state = NoteState.DEAD;
+            scored = 50;
+        }
+        else if (distance < 64) {
+            this.notes[rindex].state = NoteState.DEAD;
+            scored = 25;
+        }
+        return scored;
     }
 };
 
@@ -99,11 +151,19 @@ class Playfield extends Phaser.Scene {
     }
 
     create () {
-        this.leftArrow = new Target(this, 240, 64, 90);
-        this.upArrow = new Target(this, 370, 64, 180);
-        this.downArrow = new Target(this, 500, 64, 0);
-        this.rightArrow = new Target(this, 630, 64, 270);
+        // set up the keys that will trigger our arrow clicks
+        this.downKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
+        this.upKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
+        this.leftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
+        this.rightKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
 
+        // create our lanes
+        this.leftArrow = new Lane(this, 240, 64, 90);
+        this.upArrow = new Lane(this, 370, 64, 180);
+        this.downArrow = new Lane(this, 500, 64, 0);
+        this.rightArrow = new Lane(this, 630, 64, 270);
+
+        // create a conductor and give it some demo notes to produce
         this.conductor = new Conductor (this, [
             {time: 1.0, note: 0},
             {time: 1.0, note: 3},
@@ -111,14 +171,33 @@ class Playfield extends Phaser.Scene {
             {time: 2.0, note: 2},
             {time: 2.5, note: 3}
         ]);
+
+        // Set our global timer
         this.start = Date.now();
     }
 
     update() {
+        // calculate delta time (the difference in time between last update and this update)
         let now = Date.now();
         const delta = (now - this.start) / 1000;
         this.start = now;
 
+        // check to see if a key was pressed. the player must release the key and then press
+        // again for this to be true in later frames
+        if (Phaser.Input.Keyboard.JustDown (this.upKey)) {
+            this.upArrow.trigger();
+        }
+        if (Phaser.Input.Keyboard.JustDown (this.downKey)) {
+            this.downArrow.trigger();
+        }
+        if (Phaser.Input.Keyboard.JustDown (this.leftKey)) {
+            this.leftArrow.trigger();
+        }
+        if (Phaser.Input.Keyboard.JustDown (this.rightKey)) {
+            this.rightArrow.trigger();
+        }
+
+        // tell our game objects to update themselves according to delta time
         this.conductor.update(delta);
         this.leftArrow.update(delta);
         this.rightArrow.update(delta);
