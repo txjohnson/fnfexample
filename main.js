@@ -111,7 +111,7 @@ class Conductor {
 
     update (delta) {
         this.total_time += delta;
-        console.log(this.index.toString() + " vs " + this.cues.length.toString());
+
         if (this.index >= this.cues.length) { return; }
 
 
@@ -148,6 +148,10 @@ class Playfield extends Phaser.Scene {
 
     preload() {
         this.load.spritesheet('arrows', 'art/_arrow 1x8 (doubleres).png', {frameWidth: 128, frameHeight: 128});
+        this.load.image('good', 'art/good.png');
+        this.load.image('bad', 'art/bad.png');
+        this.load.image('sick', 'art/sick.png');
+        this.load.image('sht', 'art/sh-t.png');
     }
 
     create () {
