@@ -11,7 +11,7 @@ class Note {
         this.sprite = this.scene.add.sprite(atarget.sprite.x, 728, 'arrows', 3);
         this.sprite.angle = atarget.sprite.angle;
     }
-
+    // Note.update()
     update(delta) {
         this.sprite.y -= this.scene.gamespeed * delta;
 
@@ -22,6 +22,10 @@ class Note {
         if (this.sprite.y < (this.target.sprite.y - 128)) {
             this.ready = false;
         }
+    }
+
+    flash () {
+        this.sprite.play ('flash', true);
     }
 
     destroy () {
@@ -36,12 +40,15 @@ class Lane {
         this.sprite = scene.add.sprite(x, y, 'arrows', 7);
         this.sprite.angle = d;
         this.notes = [];
+        this.sprite.on(Phaser.Animations.Events.ANIMATION_COMPLETE, function () {
+            this.sprite.setFrame (7);
+        }, this);
     }
 
     createNote () {
         this.notes.push (new Note (this));
     }
-
+    // Lane.update()
     update(delta) {
         // create a new list that will hold notes that are still alive
         let newlist = [];
@@ -73,9 +80,14 @@ class Lane {
         return -1;
     }
 
+    flash () {
+        this.sprite.play ('flash', true);
+    }
+
     trigger () {
         let rindex = this.getFirstReadyIndex ();
         let scored = 0;
+        console.log (`Ready is ${rindex}`)
 
         if (rindex < 0) { return }
         this.notes[rindex].ready = false;
@@ -83,18 +95,18 @@ class Lane {
         let distance = Math.abs(this.notes[rindex].sprite.y - this.sprite.y);
 
         if (distance > 128) {
-            this.notes[rindex].sprite.frame = 0;
+            this.notes[rindex].sprite.setFrame (0);
         }
         else if (distance < 8) {
-            this.notes[rindex].state = NoteState.DEAD;
+            this.flash();
             scored = 100;
         }
         else if (distance < 16) {
-            this.notes[rindex].state = NoteState.DEAD;
+            this.flash();
             scored = 50;
         }
         else if (distance < 64) {
-            this.notes[rindex].state = NoteState.DEAD;
+            this.flash();
             scored = 25;
         }
         return scored;
@@ -113,7 +125,6 @@ class Conductor {
         this.total_time += delta;
 
         if (this.index >= this.cues.length) { return; }
-
 
         if (this.cues[this.index].time >= this.total_time) {
             return;
@@ -176,6 +187,16 @@ class Playfield extends Phaser.Scene {
             {time: 2.5, note: 3}
         ]);
 
+        // create an animation called flash. this animation causes sprites to flash
+        this.anims.create({
+            key: 'flash',
+            frames: this.anims.generateFrameNumbers('arrows', { 
+                frames: [ 0, 1, 2, 3, 4, 5, 6, 7 ] 
+            }),
+            frameRate: 20,
+            repeat: 0
+        });
+        
         // Set our global timer
         this.start = Date.now();
     }
@@ -188,6 +209,7 @@ class Playfield extends Phaser.Scene {
 
         // check to see if a key was pressed. the player must release the key and then press
         // again for this to be true in later frames
+
         if (Phaser.Input.Keyboard.JustDown (this.upKey)) {
             this.upArrow.trigger();
         }
